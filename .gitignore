@@ -3,6 +3,5 @@ __pycache__
 .git
 .venv
 *.pyc
-notebooks/
 data/
 .ipynb_checkpoints
