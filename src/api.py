@@ -1,7 +1,7 @@
 from fastapi import FastAPI,HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import data
+from src.data import load_inference_features, TICKERS
 import joblib
 from datetime import datetime
 from pathlib import Path

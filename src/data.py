@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import json
-from features import build_features
+from src.features import build_features
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
