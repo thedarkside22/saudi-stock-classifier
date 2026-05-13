@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tadawul Stock Direction Predictor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0e1117;
+      color: #e6e6e6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: #1a1f29;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      max-width: 480px;
+      width: 100%;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: #f0f0f0;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    select, button {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid #2d3340;
+      background: #0e1117;
+      color: #e6e6e6;
+      margin-bottom: 20px;
+    }
+    select:focus, button:focus { outline: 2px solid #4a90e2; }
+    button {
+      background: #4a90e2;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    button:hover:not(:disabled) { background: #357abd; }
+    button:disabled { background: #2d3340; cursor: not-allowed; }
+    .result {
+      background: #0e1117;
+      border: 1px solid #2d3340;
+      border-radius: 6px;
+      padding: 20px;
+      margin-top: 8px;
+      display: none;
+    }
+    .result.visible { display: block; }
+    .result.error { border-color: #c0392b; color: #e74c3c; }
+    .ticker-name {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .as-of {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .probability {
+      font-size: 36px;
+      font-weight: 700;
+      color: #4a90e2;
+      margin-bottom: 4px;
+    }
+    .probability-label {
+      font-size: 13px;
+      color: #aaa;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid #2d3340;
+      font-size: 11px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .footer a { color: #4a90e2; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tadawul Stock Direction Predictor</h1>
+    <p class="subtitle">ML-based next-day direction prediction for Saudi-listed equities</p>
+
+    <label for="ticker">Select a ticker</label>
+    <select id="ticker"></select>
+
+    <button id="predict-btn">Predict</button>
+
+    <div id="result" class="result"></div>
+
+    <div class="footer">
+      Predicts the probability of a &gt;1% price increase on the next trading day, based on features (RSI, ATR, Bollinger width, volatility, momentum) computed from recent OHLCV data. Random Forest classifier, ROC-AUC ~0.58 on held-out data. <strong>Not financial advice.</strong>
+      <br /><br />
+      API docs: <a href="/docs">/docs</a>
+    </div>
+  </div>
+
+  <script>
+    const tickerSelect = document.getElementById('ticker');
+    const predictBtn = document.getElementById('predict-btn');
+    const resultDiv = document.getElementById('result');
+
+    // Populate dropdown on page load
+    async function loadTickers() {
+      try {
+        const response = await fetch('/tickers');
+        const data = await response.json();
+        const tickers = data.tickers || data.Tickers || [];
+        tickers.sort();
+        for (const t of tickers) {
+          const option = document.createElement('option');
+          option.value = t;
+          option.textContent = t;
+          tickerSelect.appendChild(option);
+        }
+      } catch (err) {
+        tickerSelect.innerHTML = '<option>Failed to load tickers</option>';
+      }
+    }
+
+    // Handle predict click
+    async function predict() {
+      const ticker = tickerSelect.value;
+      if (!ticker) return;
+
+      predictBtn.disabled = true;
+      predictBtn.textContent = 'Predicting…';
+      resultDiv.className = 'result';
+
+      try {
+        const response = await fetch(`/predict?ticker=${encodeURIComponent(ticker)}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'Prediction failed');
+        }
+
+        const prob = data.probability;
+        const asOf = data.as_of;
+        const pct = (prob * 100).toFixed(1);
+
+        resultDiv.innerHTML = `
+          <div class="ticker-name">${data.ticker}</div>
+          <div class="as-of">Based on market data through ${asOf}</div>
+          <div class="probability">${pct}%</div>
+          <div class="probability-label">probability of &gt;1% rise on next trading day</div>
+        `;
+        resultDiv.className = 'result visible';
+      } catch (err) {
+        resultDiv.innerHTML = `Error: ${err.message}`;
+        resultDiv.className = 'result visible error';
+      } finally {
+        predictBtn.disabled = false;
+        predictBtn.textContent = 'Predict';
+      }
+    }
+
+    predictBtn.addEventListener('click', predict);
+    loadTickers();
+  </script>
+</body>
+</html>
